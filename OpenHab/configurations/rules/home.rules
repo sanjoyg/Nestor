@@ -1,0 +1,343 @@
+import org.openhab.core.library.types.*
+import java.util.Calendar
+import java.util.Map
+import java.util.HashMap
+
+
+/*
+** Measured levels (cm)
+** UG Tank : 40 is full, 185 is completely Empty
+** OH Tank : 20 is full, 120 is completely Empty
+** OH Tank : 20 is full, 150 is completely Empty (big tank)
+*/
+ 
+// Variables
+ 
+var int 	UG_TANK_MAX_LEVEL 			= 40
+var int 	UG_TANK_EMPTY_LEVEL 		= 175 
+var int		OH_FF_TANK_MAX_LEVEL		= 20
+var int		OH_FF_TANK_MIN_LEVEL		= 110
+var int		OH_SF_TANK_MAX_LEVEL		= 20
+var int		OH_SF_TANK_MIN_LEVEL		= 140
+
+var int 	WATER_LEVEL_CHANGE_WAIT 	= 5
+var int 	PUMP_ON_WAIT				= 15
+var float 	FILL_THRESHOLD_NO_SUPPLY 	= 50.0f	
+var float 	FILL_THRESHOLD_SUPPLY 		= 90.0f
+var float 	UG_TANK_EMPTY				= 5.0f
+
+var int 	morningWaterTimeStart	= 600
+var int		morningWaterTimeEnd		= 630
+var int		eveningWaterTimeStart	= 0
+var int		eveningWaterTimeEnd		= 1830
+
+var long 	ugPrevPumpSwitchOn 	= 0
+var long 	ugPrevPumpSwitchOff = 0
+var float 	ugPrevWaterLevel 	= 0.0f
+
+//Floor wise persistent parameters
+
+var long	ugFFPrevPumpSwitchOn  = 0
+var long	ugFFPrevPumpSwitchOff = 0
+var float	ugFFPrevWaterLevel	  = 0.0f
+ 
+var long	ugSFPrevPumpSwitchOn  = 0
+var long	ugSFPrevPumpSwitchOff = 0
+var float	ugSFPrevWaterLevel	  = 0.0f
+
+var HashMap gfWaterLevelParameters = new HashMap()
+var HashMap ffWaterLevelParameters = new HashMap()
+var HashMap sfWaterLevelParameters = new HashMap()
+
+
+var org.eclipse.xtext.xbase.lib.Functions$Function4 calcIfIsWaterTime = [ 
+	int morningWaterTimeStartConst,
+	int morningWaterTimeEndConst,
+	int eveningWaterTimeStartConst,
+	int eveningWaterTimeEndConst
+	|
+	var boolean isWaterTime = false
+	var now = Calendar::getInstance()
+	var int nowInt = now.get(Calendar::HOUR_OF_DAY) * 100 + now.get(Calendar::MINUTE);
+	
+	if ((nowInt > morningWaterTimeStartConst && nowInt < morningWaterTimeEndConst) || (nowInt > eveningWaterTimeStartConst && nowInt < eveningWaterTimeEndConst)) { 
+		logInfo("info","Its water time")
+		isWaterTime = true
+	} else {
+		logInfo("info","Its not water time")
+	}
+	return isWaterTime 
+]
+
+
+var org.eclipse.xtext.xbase.lib.Functions$Function4 convertToWaterLevelPerCent = [ 
+	org.openhab.core.library.items.NumberItem sensorItem,
+	org.openhab.core.library.items.NumberItem displayItem,
+	float tankEmptyLevel,
+	float tankMaxLevel |
+	
+	var Number currentWaterLevel = 0
+	// The water level actually lower his higher full as its a distance to water
+	// leave measure.
+	currentWaterLevel =  (sensorItem.state as DecimalType).intValue()
+	currentWaterLevel = tankEmptyLevel - currentWaterLevel
+
+	var currentWaterLevelPercent = ((currentWaterLevel * 100.0) / (tankEmptyLevel - tankMaxLevel)).floatValue
+
+	postUpdate(displayItem, currentWaterLevelPercent)
+	return currentWaterLevelPercent
+]
+
+var org.eclipse.xtext.xbase.lib.Functions$Function1 ugPumpDecision = [ 
+	java.util.HashMap parameters |
+	
+	var org.openhab.core.library.items.SwitchItem ugPumpSwitchItem = (parameters.get("ugPumpSwitchItem") as org.openhab.core.library.items.SwitchItem)
+	var org.openhab.core.library.items.SwitchItem ohPumpSwitchItem = (parameters.get("ohPumpSwitchItem") as org.openhab.core.library.items.SwitchItem)
+	var org.openhab.core.library.items.NumberItem ugWaterLevelItem = (parameters.get("ugWaterLevelItem") as org.openhab.core.library.items.NumberItem)	
+	
+	var boolean isWaterTime 				= (parameters.get("isWaterTime") as Boolean)
+	var long 	ugPrevPumpSwitchOn 			= (parameters.get("ugPrevPumpSwitchOn") as Integer).longValue
+	var long 	ugPrevPumpSwitchOff 		= (parameters.get("ugPrevPumpSwitchOff") as Integer).longValue
+	var float 	ugPrevWaterLevel 			= (parameters.get("ugPrevWaterLevel") as Integer).floatValue
+	var int 	waterLevelChangeInterval 	= (parameters.get("waterLevelChangeInterval") as Integer).intValue
+	var int 	pumpOnWaitInterval 			= (parameters.get("pumpOnWaitInterval") as Integer).intValue
+	var float	fillThresholdNoSupply		= (parameters.get("fillThresholdNoSupply") as Float)
+	
+	var boolean ohPumpOn = false
+	var boolean ugPumpOn = false
+	var float ugCurrentWaterLevel = 0f;
+	
+	if ( ohPumpSwitchItem.state == ON ) {
+		ohPumpOn = true
+	}
+	
+	if (ugPumpSwitchItem.state == ON) {
+		ugPumpOn = true
+	}
+
+	var now = Calendar::getInstance()
+	// Populate current values
+	ugCurrentWaterLevel = (ugWaterLevelItem.state as DecimalType).floatValue()
+		
+	if (ugCurrentWaterLevel >= 100f) {
+		// UG Water Level is full, so set the UG pump to off
+		logInfo("info","UG Water Level is full, so set UG pump to off")
+		ugPumpOn = false
+		parameters.put("ugPrevPumpSwitchOff",now.timeInMillis)
+	} else {
+		if (isWaterTime) {
+			if (ohPumpOn) {
+				ugPumpOn = true
+				ugPrevPumpSwitchOn = now.timeInMillis
+				ugPrevWaterLevel = ugCurrentWaterLevel // Not it for check later
+				logInfo("info","Its water time, up pump is on so switch on pump.")
+			} else {
+				if (ugPumpOn) {
+					if (now.timeInMillis - ugPrevPumpSwitchOn > waterLevelChangeInterval * 60 * 1000) {
+						if (ugCurrentWaterLevel - ugPrevWaterLevel > 0) {
+							ugPrevWaterLevel = ugCurrentWaterLevel //Update so that we check with recent value
+							logInfo("info","Its water time, ug pump is on water level is rising, continue to fill.")
+						} else {
+							ugPumpOn = false
+							parameters.put("ugPrevPumpSwitchOff",now.timeInMillis)
+							logInfo("info","Its water time, ug pump is on water level did not rise, stop the pump.")
+						}
+					} else {
+						logInfo("info","Its water time, up pump is on, waiting for time to elapse to measure change in water level")
+					}
+				} else {
+					if (now.timeInMillis - ugPrevPumpSwitchOff > pumpOnWaitInterval * 60 * 1000) {
+						ugPumpOn = true
+						ugPrevPumpSwitchOn = now.timeInMillis
+						ugPrevWaterLevel = ugCurrentWaterLevel // Not it for check later
+						logInfo("info","Its water time, up pump is off, more than time elapsed between off and now, switch on to check if water is flowing")
+					} else {
+						logInfo("info","Its water time, up pump is off, wait till time elapsed between last off and now.")
+					}
+				}
+			}
+		} else {
+			// Its not water time
+			if (ugPumpOn) {
+				if (now.timeInMillis - ugPrevPumpSwitchOn > waterLevelChangeInterval * 60 * 1000) {
+					if (ugCurrentWaterLevel - ugPrevWaterLevel > 0) {
+						ugPrevWaterLevel = ugCurrentWaterLevel //Update so that we check with recent value
+						logInfo("info","Its not water time, ug pump is on water level is rising, continue to fill.")
+					} else {
+						ugPumpOn = false
+						ugPrevPumpSwitchOff = now.timeInMillis
+						logInfo("info","Its not water time, ug pump is on water level is rising, continue to fill.")
+					}					
+				} else {
+					logInfo("info","Its not water time, up pump is on, waiting for time to elapse to measure change in water level")
+				}
+			} else {
+				if (ugCurrentWaterLevel < fillThresholdNoSupply) {
+					if (now.timeInMillis - ugPrevPumpSwitchOff > pumpOnWaitInterval * 60 * 1000) {
+						ugPumpOn = true
+						ugPrevPumpSwitchOn = now.timeInMillis
+						ugPrevWaterLevel = ugCurrentWaterLevel // Not it for check later
+						logInfo("info","Its not water time, up pump is off, UG water level below threshold,  more than time elapsed between off and now, switch on to check if water is flowing")
+					} else {
+						logInfo("info","Its not water time, up pump is off, UG water level below fill threshold, wait tille time elapsed between last off and now.")
+					}
+				} else {
+					logInfo("info","Its not water time, current UG water level above fill threshold on no supply so do nothing")
+				}
+			}
+		}
+	}
+	logInfo("info","Am returning " + ugPumpOn)
+	return ugPumpOn
+]
+
+var org.eclipse.xtext.xbase.lib.Functions$Function6 ohPumpDecision = [ 
+	org.openhab.core.library.items.NumberItem ugWaterLevelItem,
+	org.openhab.core.library.items.NumberItem ohWaterLevelItem,
+	boolean isWaterTime,
+	float fillThresholdSupply,
+	float fillThresholdNoSupply,
+	float empty | 
+	
+	var boolean ohPumpOn = false
+	var float ohCurrentWaterLevel = 0f
+	var float ugCurrentWaterLevel = 0f
+	
+	ohCurrentWaterLevel = (ohWaterLevelItem.state as DecimalType).floatValue()
+	ugCurrentWaterLevel = (ugWaterLevelItem.state as DecimalType).floatValue()
+	
+	// Up Pump Logic
+	if (ohCurrentWaterLevel >= 100f) {
+		ohPumpOn = false
+		logInfo("info","OH Water Level is good, so don't worry about filling now.")
+	} else {
+		if (isWaterTime) {
+			if (ohCurrentWaterLevel < fillThresholdSupply) {
+				if (ugCurrentWaterLevel > empty) {
+					ohPumpOn = true
+					logInfo("info","Its water time, OH water level is less than threshold so turn the OH pump on")
+				} else {
+					ohPumpOn = false
+					logInfo("info","Its water time, OH is water level is less than threshold but UG tank is empty so turn off pump")
+				}
+			} else {
+				ohPumpOn = false
+				logInfo("info","Its water time, but OH water level more than threshold, so do nothing.")
+			}
+		} else {
+			if (ohPumpOn) {
+				if (ugCurrentWaterLevel > empty) {
+					logInfo("info","Its not water time, OH pump on, UG tank is not empty so continue to fill")
+				} else {
+					ohPumpOn = false
+					logInfo("info","Its not water time, OH pump on and UG tank is empty so turn off pump")
+				}
+			} else {
+				if (ohCurrentWaterLevel < fillThresholdNoSupply) {
+					if (ugCurrentWaterLevel > empty) {
+						ohPumpOn = true
+						logInfo("info","Its not water time, OH pump off, OH water level below threshold, UG tank is not empty so turn up pump on to fill")
+					} else {
+						logInfo("info","Its not water time, OH pump off, OH water level below threshold, UG tank is empty so do nothing wait till UG tank water fills up")
+					}
+				} else {
+					logInfo("info","Its not water time, OH water level is above threshold, so do nothing.")
+				}
+			}
+		}
+	}
+	
+	return ohPumpOn
+]
+
+rule "Water Level Conversion Rules"
+when
+	Item 	ffUGWaterLevelRaw changed or 
+	Item	ffOHWaterLevelRaw changed or
+	Item	sfUGWaterLevelRaw changed or
+	Item	sfOHWaterLevelRaw changed
+then
+	// First Floor
+	convertToWaterLevelPerCent.apply(ffUGWaterLevelRaw,ffUGWaterLevel,UG_TANK_EMPTY_LEVEL,UG_TANK_MAX_LEVEL)
+	convertToWaterLevelPerCent.apply(ffOHWaterLevelRaw,ffOHWaterLevel,OH_FF_TANK_MIN_LEVEL,OH_FF_TANK_MAX_LEVEL)
+	
+	// Second Floor
+	convertToWaterLevelPerCent.apply(sfUGWaterLevelRaw,sfUGWaterLevel,UG_TANK_EMPTY_LEVEL,UG_TANK_MAX_LEVEL)
+	convertToWaterLevelPerCent.apply(sfOHWaterLevelRaw,sfUGWaterLevel,OH_SF_TANK_MIN_LEVEL,OH_SF_TANK_MAX_LEVEL)
+end
+
+rule "Sanjoy_DEMO"
+when
+	Item Demo_LED received command ON
+then
+	var xx = [ HashMap myMap | 
+		val pair = "sanjoy" -> "ghosh"
+		logInfo("info",(myMap.get("Sanjoy") as String))
+		myMap.put("x","y")
+		return pair
+	]
+	var HashMap<String,String> a = new HashMap<String,String>();
+	a.put("Sanjoy","ghosh");
+	val m = xx.apply(a)
+	logInfo("info","return " + a.get("x"))
+  	sendCommand(Demo_LED, OFF)
+end
+
+rule "Downstairs Door Open Logic"
+when
+	Item gfMainDoor received command ON
+then
+	postUpdate(gfMainDoor,OFF)
+end
+
+rule "Pump Logic"
+when
+	Item Pump_Test received command ON
+then
+
+	var boolean	ugPumpOn			= false
+	var boolean	ohPumpOn			= false
+	
+	var boolean isWaterTime = (calcIfIsWaterTime.apply(morningWaterTimeStart, morningWaterTimeEnd, eveningWaterTimeStart, eveningWaterTimeEnd) as Boolean)
+	
+	gfWaterLevelParameters.put("ugPumpSwitchItem",gfPump)
+	gfWaterLevelParameters.put("ohPumpSwitchItem",ohPump)
+	gfWaterLevelParameters.put("ugWaterLevelItem",gfWaterLevel)
+	gfWaterLevelParameters.put("isWaterTime", isWaterTime)
+	gfWaterLevelParameters.put("ugPrevPumpSwitchOn",ugPrevPumpSwitchOn)
+	gfWaterLevelParameters.put("ugPrevPumpSwitchOff",ugPrevPumpSwitchOff)
+	gfWaterLevelParameters.put("ugPrevWaterLevel",ugPrevWaterLevel)
+	gfWaterLevelParameters.put("waterLevelChangeInterval",WATER_LEVEL_CHANGE_WAIT)
+	gfWaterLevelParameters.put("pumpOnWaitInterval",PUMP_ON_WAIT)
+	gfWaterLevelParameters.put("fillThresholdNoSupply",FILL_THRESHOLD_NO_SUPPLY)
+	
+	ugPumpOn = ugPumpDecision.apply(gfWaterLevelParameters) as Boolean	
+	ohPumpOn = ohPumpDecision.apply(gfWaterLevel,ohWaterLevel,isWaterTime,FILL_THRESHOLD_NO_SUPPLY,FILL_THRESHOLD_SUPPLY,UG_TANK_EMPTY) as Boolean
+
+	// Update the prev parameters
+	ugPrevPumpSwitchOn  = gfWaterLevelParameters.get("ugPrevPumpSwitchOn") as Integer
+	ugPrevPumpSwitchOff = gfWaterLevelParameters.get("ugPrevPumpSwitchOff") as Integer
+	ugPrevWaterLevel    = (gfWaterLevelParameters.get("ugPrevWaterLevel") as Integer).floatValue
+	
+	
+	logInfo("info","Finally ugPump is : " + ugPumpOn)
+	logInfo("info","Finally ohPump is : " + ohPumpOn)
+
+	sendCommand(gfPump, if (ugPumpOn) ON else OFF)
+	sendCommand(ohPump, if (ohPumpOn) ON else OFF)
+
+end
+
+rule "Demo GF Raw Water Level Conversion"
+when
+	Item gfWaterLevelRaw changed 
+then
+	convertToWaterLevelPerCent.apply(gfWaterLevelRaw,gfWaterLevel,UG_TANK_EMPTY_LEVEL,UG_TANK_MAX_LEVEL)
+end	
+
+rule "Demo OH Raw Water Level Conversion"
+when
+	Item ohWaterLevelRaw changed 
+then
+	convertToWaterLevelPerCent.apply(ohWaterLevelRaw,ohWaterLevel,UG_TANK_EMPTY_LEVEL,UG_TANK_MAX_LEVEL)
+end	

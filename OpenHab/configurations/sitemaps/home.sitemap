@@ -1,0 +1,39 @@
+sitemap home label="C-503" 
+{
+	
+	Frame label="C-503" {
+		Switch item=gfMainDoor
+		Text item=sfUGWaterLevel 	labelcolor=[>70="green",>30="orange",>0="red"] valuecolor=[>70="green",>30="orange",>0="red"]
+		Text item=sfOHWaterLevel 	labelcolor=[>70="green",>30="orange",>0="red"] valuecolor=[>70="green",>30="orange",>0="red"]
+		Text item=ffUGWaterLevel 	labelcolor=[>70="green",>30="orange",>0="red"] valuecolor=[>70="green",>30="orange",>0="red"]
+		Text item=ffOHWaterLevel 	labelcolor=[>70="green",>30="orange",>0="red"] valuecolor=[>70="green",>30="orange",>0="red"]
+	}
+
+	Frame label="All Modules" {
+		Group item=Modules label="All the system modules"
+	}
+
+	Frame label="Sanjoy Demo" {
+    	Switch item=Demo_LED
+        Text item=Demo_Distance
+        Switch item=Demo_TwoWaySwitch
+        Switch item=Pump_Test
+        Text item=gfWaterLevel 	labelcolor=[>70="green",>30="orange",>0="red"] valuecolor=[>70="green",>30="orange",>0="red"]
+        Text item=gfWaterLevelRaw
+        Text item=ohWaterLevel  labelcolor=[>70="green",>30="orange",>0="red"] valuecolor=[>70="green",>30="orange",>0="red"]
+        Text item=ohWaterLevelRaw
+        Switch item=gfPump
+        Switch item=ohPump
+        Switch item=chartingPeriod label="Chart Period" mappings=[0="H", 1="12H", 2="D", 3="W", 4="M"]  
+        Chart item=gfWaterLevel period=h 	refresh=300 visibility=[chartingPeriod==0, chartingPeriod=="Uninitialized"]  
+		Chart item=gfWaterLevel period=12h 	refresh=300 visibility=[chartingPeriod==1]  
+		Chart item=gfWaterLevel period=D 	refresh=300 visibility=[chartingPeriod==2]
+		Chart item=gfWaterLevel period=W 	refresh=300 visibility=[chartingPeriod==3]  
+	}
+
+	Frame label="Home" icon=<home> {
+		Group item=gFirstFloor 	label="First Floor"
+		Group item=gSecondFloor label="Second Floor"
+		Group item=gThirdFloor 	label="Third Floor"
+	}
+}

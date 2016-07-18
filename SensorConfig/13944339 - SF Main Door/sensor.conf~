@@ -1,0 +1,7 @@
+# Format to use
+# GenericDigitalRead=name of sensor|topic of MQ| freq | pin number
+# GenericDigitalWrite=name of sensor|topic of MQ| freq | pin number
+# HCSR04Sensor=name of sensor|topic of MQ|trigger pin|freq | echo pin
+#     optional for above | min,max (would then be calculate as % and sent)
+# TwoWaySwitch=name | topic | freq | trigger pin | ads channel
+BuzzerSwitch=Main Door|c503/sensors/sf/lb/buzMainDoor|default|D1|1
