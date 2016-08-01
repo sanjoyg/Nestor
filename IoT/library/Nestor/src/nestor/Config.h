@@ -2,14 +2,11 @@
 #define CONFIG_H
 #include <core/esp8266pinmap.h>
 
-#define WIFI_SSID	"ghoshnet"
-#define WIFI_PWD	"9810002485"
+#define WIFI_SSID	"xx"
+#define WIFI_PWD	"xx"
 
-//#define WIFI_SSID	"Sanjoy's iPhone"
-//#define WIFI_PWD	"hua9ce0e5a3ex"
 
-#define MQTT_HOST	"192.168.1.10"
-//#define MQTT_HOST	"test.mosquitto.org"
+#define MQTT_HOST	"test.mosquitto.org"
 #define MQTT_PORT	1883
 
 #define SYSTEM_TOPIC_PREFIX	"c503/system/"
