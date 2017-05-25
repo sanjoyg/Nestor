@@ -48,16 +48,20 @@ Group	g1017889		"1017889-Placed Somewhere" 	<esp826612e>		(Modules)
 String Sensor_1017889_Status	"Status [%s]"	<status> 	 (g1017889) {mqtt="<[mosquitto:c503/system/1017889/status:state:JSONPATH($.s)]"}
 String Sensor_1017889_IP		"IP [%s]"		<esp826612e> (g1017889) {mqtt="<[mosquitto:c503/system/1017889/status:state:JSONPATH($.ip)]"}
 String Sensor_1017889_Msg_Time	"Msg Time [%s]"	<runtime>	 (g1017889) {mqtt="<[mosquitto:c503/system/1017889/status:state:JSONPATH($.t)]"}
+Switch Sensor_1017889_STATUSLED	"Status LED Enabled" 		 (g1017889) {mqtt=">[mosquitto:c503/system/1017889:command:OFF:statusled-disable],>[mosquitto:c503/system/1017889:command:ON:statusled-enable],<[mosquitto:c503/system/1017889/status:state:JSONPATH($.l)]"}
 Switch Sensor_1017889_OLED		"OLED Enabled"   			 (g1017889) {mqtt=">[mosquitto:c503/system/1017889:command:OFF:oled-disable],>[mosquitto:c503/system/1017889:command:ON:oled-enable],<[mosquitto:c503/system/1017889/status:state:JSONPATH($.o)]"}
 Switch Sensor_1017889_DEBUG		"Debug Enabled" <debug>	 	 (g1017889) {mqtt=">[mosquitto:c503/system/1017889:command:OFF:debug-off],>[mosquitto:c503/system/1017889:command:ON:debug-on],<[mosquitto:c503/system/1017889/status:state:JSONPATH($.d)]"}
+Switch Sensor_1017889_DeepSleep	"Deep Sleep"   			 	 (g1017889) {mqtt=">[mosquitto:c503/system/1017889:command:OFF:deepsleep-disable],>[mosquitto:c503/system/1017889:command:ON:deepsleep-enable],<[mosquitto:c503/system/1017889/status:state:JSONPATH($.ds)]"}
 Switch Sensor_1017889_Enabled 	"Chip Enabled"   			 (g1017889) {mqtt=">[mosquitto:c503/system/1017889:command:OFF:disable],>[mosquitto:c503/system/1017889:command:ON:enable],<[mosquitto:c503/system/1017889/status:state:JSONPATH($.e)]"}
 
 
 // Item definition for 13944339 chip id - Note this would change if the chip is changed 
 // Repeat this for every esp8266 that is deployed
-String Sensor_13944339_Status	"Status [%s]"	<status> 	 (g13944339) {mqtt="<[mosquitto:c503/system/13944339/status:state:JSONPATH($.s)]"}
-String Sensor_13944339_IP		"IP [%s]"		<esp826612e> (g13944339) {mqtt="<[mosquitto:c503/system/13944339/status:state:JSONPATH($.ip)]"}
-String Sensor_13944339_Msg_Time	"Msg Time [%s]"	<runtime> 	 (g13944339) {mqtt="<[mosquitto:c503/system/13944339/status:state:JSONPATH($.t)]"}
-Switch Sensor_13944339_OLED		"OLED Enabled"  			 (g13944339) {mqtt=">[mosquitto:c503/system/13944339:command:OFF:oled-disable],>[mosquitto:c503/system/13944339:command:ON:oled-enable],<[mosquitto:c503/system/13944339/status:state:JSONPATH($.o)]"}
-Switch Sensor_13944339_DEBUG	"Debug Enabled" <debug>		 (g13944339) {mqtt=">[mosquitto:c503/system/13944339:command:OFF:debug-off],>[mosquitto:c503/system/13944339:command:ON:debug-on],<[mosquitto:c503/system/13944339/status:state:JSONPATH($.d)]"}
-Switch Sensor_13944339_Enabled 	"Chip Enabled"   			 (g13944339) {mqtt=">[mosquitto:c503/system/13944339:command:OFF:disable],>[mosquitto:c503/system/13944339:command:ON:enable],<[mosquitto:c503/system/13944339/status:state:JSONPATH($.e)]"}
+String Sensor_13944339_Status	 "Status [%s]"		<status> 	 (g13944339) {mqtt="<[mosquitto:c503/system/13944339/status:state:JSONPATH($.s)]"}
+String Sensor_13944339_IP		 "IP [%s]"			<esp826612e> (g13944339) {mqtt="<[mosquitto:c503/system/13944339/status:state:JSONPATH($.ip)]"}
+String Sensor_13944339_Msg_Time	 "Msg Time [%s]"	<runtime> 	 (g13944339) {mqtt="<[mosquitto:c503/system/13944339/status:state:JSONPATH($.t)]"}
+Switch Sensor_13944339_STATUSLED "Status LED Enabled" 	 		 (g13944339) {mqtt=">[mosquitto:c503/system/13944339:command:OFF:statusled-disable],>[mosquitto:c503/system/13944339:command:ON:statusled-enable],<[mosquitto:c503/system/13944339/status:state:JSONPATH($.l)]"}
+Switch Sensor_13944339_OLED		 "OLED Enabled"  			 	 (g13944339) {mqtt=">[mosquitto:c503/system/13944339:command:OFF:oled-disable],>[mosquitto:c503/system/13944339:command:ON:oled-enable],<[mosquitto:c503/system/13944339/status:state:JSONPATH($.o)]"}
+Switch Sensor_13944339_DEBUG	 "Debug Enabled" <debug>		 (g13944339) {mqtt=">[mosquitto:c503/system/13944339:command:OFF:debug-off],>[mosquitto:c503/system/13944339:command:ON:debug-on],<[mosquitto:c503/system/13944339/status:state:JSONPATH($.d)]"}
+Switch Sensor_13944339_DeepSleep "Deep Sleep"   			 	 (g13944339) {mqtt=">[mosquitto:c503/system/13944339:command:OFF:deepsleep-disable],>[mosquitto:c503/system/13944339:command:ON:deepsleep-enable],<[mosquitto:c503/system/13944339/status:state:JSONPATH($.ds)]"}
+Switch Sensor_13944339_Enabled 	 "Chip Enabled"   			 	 (g13944339) {mqtt=">[mosquitto:c503/system/13944339:command:OFF:disable],>[mosquitto:c503/system/13944339:command:ON:enable],<[mosquitto:c503/system/13944339/status:state:JSONPATH($.e)]"}
